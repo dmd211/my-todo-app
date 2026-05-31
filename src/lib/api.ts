@@ -1,7 +1,11 @@
-import { API_BASE } from './supabase'
+// 构建完整后端 URL（Vercel 环境变量指向后端服务器）
+const BACKEND_URL = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000'
 
 async function fetchAPI(endpoint: string, options: RequestInit = {}) {
-  const url = `${API_BASE}${endpoint}`
+  // 如果是相对路径，拼接后端完整地址
+  const url = endpoint.startsWith('http')
+    ? endpoint
+    : `${BACKEND_URL}${endpoint}`
   const res = await fetch(url, {
     headers: { 'Content-Type': 'application/json', ...options.headers },
     ...options,
