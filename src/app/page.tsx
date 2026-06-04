@@ -1,34 +1,88 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { api } from '@/lib/api'
-import { RefreshCw, BookOpen, FolderOpen, Calendar, Brain } from 'lucide-react'
+import { supabase } from '@/lib/supabase'
+import { RefreshCw, BookOpen, FolderOpen, Calendar, Brain, CheckSquare } from 'lucide-react'
 
 export default function DashboardPage() {
-  const [stats, setStats] = useState<any>(null)
+  const [todayWrong, setTodayWrong] = useState(0)
+  const [weeklyProgress, setWeeklyProgress] = useState(0)
   const [quote, setQuote] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const [daysToExam, setDaysToExam] = useState(0)
 
-  async function load() {
-    setLoading(true)
+  // 考研倒计时：每年12月最后一个周六
+  useEffect(() => {
+    const now = new Date()
+    const year = now.getFullYear()
+    // 12月最后一个周六
+    const lastDayOfDec = new Date(year, 11, 1)
+    const dayOfWeek = lastDayOfDec.getDay()
+    const daysToAdd = dayOfWeek <= 6 ? 6 - dayOfWeek : 0
+    const lastSaturday = new Date(year, 11, 31 - daysToAdd)
+    // 如果已经过了今年的考研，往后推到明年
+    const examDate = lastSaturday < now ? new Date(year + 1, 11, 31 - ((new Date(year + 1, 11, 1).getDay() + 1) % 7 || 7)) : lastSaturday
+    setDaysToExam(Math.max(0, Math.ceil((examDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))))
+  }, [])
+
+  async function loadQuote() {
     try {
-      const [dash, q] = await Promise.all([api.ai.dashboard(), api.quotes.random()])
-      setStats(dash)
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE}/api/quotes/random`)
+      const q = await res.json()
       setQuote(q)
     } catch (e) {
-      console.error(e)
+      setQuote({ content: '加油，你一定可以！', author: '佚名' })
+    }
+  }
+
+  async function loadStats() {
+    setLoading(true)
+    try {
+      // 今日新增错题（直接查 Supabase）
+      const today = new Date().toISOString().split('T')[0]
+      const { count: wrongCount } = await supabase
+        .from('wrong_questions')
+        .select('*', { count: 'exact', head: true })
+        .gte('created_at', today + 'T00:00:00')
+        .lt('created_at', today + 'T23:59:59')
+
+      setTodayWrong(wrongCount || 0)
+
+      // 本周完成度（查 daily_tasks）
+      const now = new Date()
+      const year = now.getFullYear()
+      const weekStart = new Date(now)
+      weekStart.setDate(now.getDate() - now.getDay())
+      const weekEnd = new Date(now)
+      weekEnd.setDate(now.getDate() + (6 - now.getDay()))
+
+      const { data: weeklyTasks } = await supabase
+        .from('daily_tasks')
+        .select('*')
+        .gte('date', weekStart.toISOString().split('T')[0])
+        .lte('date', weekEnd.toISOString().split('T')[0])
+
+      if (weeklyTasks && weeklyTasks.length > 0) {
+        const done = weeklyTasks.filter((t: any) => t.completed).length
+        setWeeklyProgress(Math.round((done / weeklyTasks.length) * 100))
+      } else {
+        setWeeklyProgress(0)
+      }
+
+      await loadQuote()
+    } catch (e) {
+      console.error('加载仪表盘数据失败:', e)
     }
     setLoading(false)
   }
 
   async function refreshQuote() {
     setRefreshing(true)
-    const q = await api.quotes.random()
-    setQuote(q)
+    await loadQuote()
     setRefreshing(false)
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { loadStats() }, [])
 
   if (loading) return <div className="p-6 text-gray-400">加载中...</div>
 
@@ -36,15 +90,39 @@ export default function DashboardPage() {
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold text-gray-800">学习仪表盘</h2>
-        <p className="text-sm text-gray-500 mt-1">距离考研还有 <span className="text-indigo-600 font-bold text-lg">{stats?.days_to_exam}</span> 天</p>
+        <p className="text-sm text-gray-500 mt-1">
+          距离考研还有 <span className="text-indigo-600 font-bold text-lg">{daysToExam}</span> 天
+        </p>
       </div>
 
       {/* 快速统计卡片 */}
       <div className="grid grid-cols-4 gap-4">
-        <StatCard icon={<Calendar />} label="今日新增错题" value={stats?.today_wrong_count ?? 0} color="bg-red-50 text-red-500" />
-        <StatCard icon={<FolderOpen />} label="今日新增资料" value={stats?.today_material_count ?? 0} color="bg-blue-50 text-blue-500" />
-        <StatCard icon={<CheckSquare />} label="本周完成度" value={`${stats?.weekly_progress ?? 0}%`} color="bg-green-50 text-green-500" />
-        <StatCard icon={<Brain />} label="AI 督学" value="随时问" color="bg-purple-50 text-purple-500" />
+        <StatCard
+          icon={<BookOpen />}
+          label="今日新增错题"
+          value={todayWrong}
+          color="bg-red-50 text-red-500"
+        />
+        <StatCard
+          icon={<FolderOpen />}
+          label="今日新增资料"
+          value="—"
+          color="bg-blue-50 text-blue-500"
+          hint="资料库开发中"
+        />
+        <StatCard
+          icon={<CheckSquare />}
+          label="本周完成度"
+          value={`${weeklyProgress}%`}
+          color="bg-green-50 text-green-500"
+        />
+        <StatCard
+          icon={<Brain />}
+          label="AI 督学"
+          value="随时问"
+          color="bg-purple-50 text-purple-500"
+          href="/ai"
+        />
       </div>
 
       {/* AI 励志语 */}
@@ -52,7 +130,9 @@ export default function DashboardPage() {
         <div className="flex items-start justify-between">
           <div>
             <p className="text-sm opacity-75 mb-1">✨ 今日励志语</p>
-            <p className="text-xl font-medium leading-relaxed">&ldquo;{quote?.content}&rdquo;</p>
+            <p className="text-xl font-medium leading-relaxed">
+             ldquo;{quote?.content || '加油，你一定可以！'}&rdquo;
+            </p>
             <p className="text-sm opacity-60 mt-2">— {quote?.author || '佚名'}</p>
           </div>
           <button
@@ -75,21 +155,59 @@ export default function DashboardPage() {
   )
 }
 
-function StatCard({ icon, label, value, color }: { icon: React.ReactNode; label: string; value: string | number; color: string }) {
-  return (
+function StatCard({
+  icon,
+  label,
+  value,
+  color,
+  hint,
+  href,
+}: {
+  icon: React.ReactNode
+  label: string
+  value: string | number
+  color: string
+  hint?: string
+  href?: string
+}) {
+  const content = (
     <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100 flex items-center gap-4">
       <div className={`p-3 rounded-xl ${color}`}>{icon}</div>
       <div>
         <p className="text-sm text-gray-500">{label}</p>
         <p className="text-2xl font-bold text-gray-800">{value}</p>
+        {hint && <p className="text-xs text-gray-400 mt-0.5">{hint}</p>}
       </div>
     </div>
   )
+
+  return href ? (
+    <a href={href} className="hover:shadow-md transition-shadow cursor-pointer block">
+      {content}
+    </a>
+  ) : (
+    content
+  )
 }
 
-function FeatureCard({ href, icon, title, desc, color }: { href: string; icon: React.ReactNode; title: string; desc: string; color: string }) {
+function FeatureCard({
+  href,
+  icon,
+  title,
+  desc,
+  color,
+}: {
+  href: string
+  icon: React.ReactNode
+  title: string
+  desc: string
+  color: string
+}) {
   return (
-    <a href={href} className="bg-white rounded-xl p-5 shadow-sm border border-gray-100 flex items-center gap-4 hover:shadow-md transition-shadow cursor-pointer">
+    <a
+      href={href}
+      className="bg-white rounded-xl p-5 shadow-sm border border-gray-100 flex items-center gap-4 hover:shadow-md transition-shadow cursor-pointer"
+    >
       <div className={`p-3 rounded-xl ${color} text-white`}>{icon}</div>
       <div>
         <p className="font-semibold text-gray-800">{title}</p>
@@ -97,8 +215,4 @@ function FeatureCard({ href, icon, title, desc, color }: { href: string; icon: R
       </div>
     </a>
   )
-}
-
-function CheckSquare({ size = 18 }: { size?: number }) {
-  return <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
 }
