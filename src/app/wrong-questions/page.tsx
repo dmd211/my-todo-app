@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { BookOpen, Upload, Trash2, Bot, Filter, CheckCircle2, X } from 'lucide-react'
+import { BookOpen, Upload, Trash2, Bot, Filter, CheckCircle2 } from 'lucide-react'
 
 const SUBJECTS = [
   { id: '54c3540c-8fd2-4002-989c-735edc418342', name: '高等数学', color: '#ef4444' },
@@ -37,7 +37,6 @@ export default function WrongQuestionsPage() {
   const [userAnswer, setUserAnswer] = useState('')
   const [correctAnswer, setCorrectAnswer] = useState('')
   const [errorReason, setErrorReason] = useState('')
-  const [images, setImages] = useState<File[]>([])
   const [uploading, setUploading] = useState(false)
 
   function showToast(msg: string) {
@@ -62,6 +61,7 @@ export default function WrongQuestionsPage() {
       setQuestions(data || [])
     } catch (e: any) {
       console.error('加载错题失败:', e)
+      showToast('加载失败，请刷新页面重试')
     }
     setLoading(false)
   }
@@ -88,7 +88,7 @@ export default function WrongQuestionsPage() {
       if (error) throw error
 
       setShowForm(false)
-      setSubjectId(''); setDescription(''); setUserAnswer(''); setCorrectAnswer(''); setErrorReason(''); setImages([])
+      setSubjectId(''); setDescription(''); setUserAnswer(''); setCorrectAnswer(''); setErrorReason('')
       showToast('✅ 错题已保存，刷新仪表盘即可看到最新数据')
       loadData()
     } catch (e: any) {
@@ -101,8 +101,14 @@ export default function WrongQuestionsPage() {
   async function handleAnalyze(id: string) {
     setAnalyzing(id)
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE}/api/wrong-questions/${id}/analyze`, { method: 'POST' })
-      if (!res.ok) throw new Error(await res.text())
+      // AI 分析走 /api/proxy/ 路径（Vercel rewrite 到后端）
+      const res = await fetch(`/api/proxy/wrong-questions/${id}/analyze`, {
+        method: 'POST',
+      })
+      if (!res.ok) {
+        const err = await res.text()
+        throw new Error(err || 'AI分析失败')
+      }
       showToast('✅ AI 分析完成')
       loadData()
     } catch (e: any) {
@@ -321,7 +327,7 @@ export default function WrongQuestionsPage() {
                       onClick={() => handleDelete(q.id)}
                       className="text-xs text-red-400 hover:text-red-600 flex items-center gap-1"
                     >
-                      <Trash2 size={12} />删除
+                      删除
                     </button>
                   </div>
                 </div>
