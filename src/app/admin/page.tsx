@@ -1,18 +1,38 @@
 'use client'
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { Plus, Trash2, Edit2, Check, X } from 'lucide-react'
+import { getCurrentUser, logout } from '@/lib/auth'
+import { Plus, Trash2, Edit2, Check, X, LogOut } from 'lucide-react'
 
 export default function AdminPage() {
+  const router = useRouter()
   const [subjects, setSubjects] = useState<any[]>([])
   const [knowledgePoints, setKnowledgePoints] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [checkingAuth, setCheckingAuth] = useState(true)
+  const [userEmail, setUserEmail] = useState('')
   const [activeTab, setActiveTab] = useState<'subjects' | 'knowledge'>('subjects')
-  const [editingSubject, setEditingSubject] = useState<any | null>(null)
+  const [editingSubject, setEditingSubject] = useState<any>(null)
   const [newSubjectName, setNewSubjectName] = useState('')
   const [newSubjectColor, setNewSubjectColor] = useState('#6366f1')
   const [newKPName, setNewKPName] = useState('')
   const [newKPSubject, setNewKPSubject] = useState('')
+
+  // 检查登录状态
+  useEffect(() => {
+    async function checkAuth() {
+      const user = await getCurrentUser()
+      if (!user) {
+        router.push('/login')
+        return
+      }
+      setUserEmail(user.email || '')
+      setCheckingAuth(false)
+      load()
+    }
+    checkAuth()
+  }, [router])
 
   async function load() {
     setLoading(true)
@@ -29,7 +49,10 @@ export default function AdminPage() {
     setLoading(false)
   }
 
-  useEffect(() => { load() }, [])
+  async function handleLogout() {
+    await logout()
+    router.push('/login')
+  }
 
   async function saveSubject(e: React.FormEvent) {
     e.preventDefault()
@@ -65,13 +88,22 @@ export default function AdminPage() {
     load()
   }
 
+  if (checkingAuth) return <div className="p-6 text-gray-400">检查登录状态...</div>
   if (loading) return <div className="p-6 text-gray-400">加载中...</div>
 
   return (
     <div className="space-y-5">
-      <div>
-        <h2 className="text-2xl font-bold text-gray-800">管理端</h2>
-        <p className="text-sm text-gray-500 mt-1">管理学科和知识点</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-800">管理端</h2>
+          <p className="text-sm text-gray-500 mt-1">管理学科和知识点</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-gray-500">{userEmail}</span>
+          <button onClick={handleLogout} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-red-500 px-3 py-1.5 rounded-lg hover:bg-red-50">
+            <LogOut size={16} /> 退出
+          </button>
+        </div>
       </div>
 
       {/* Tabs */}
