@@ -12,22 +12,17 @@ export default function DashboardPage() {
   const [daysToExam, setDaysToExam] = useState(0)
   const [quoteError, setQuoteError] = useState<string | null>(null)
 
-  // 考研倒计时：每年12月最后一个周六
+  // 考研倒计时
   useEffect(() => {
-    function getLastSaturday(year: number): Date {
-      const lastDay = new Date(year, 11 + 1, 0).getDate() // 12月最后一天
-      const dec31 = new Date(year, 11, lastDay)
-      const dayOfWeek = dec31.getDay() // 0=Sun, 6=Sat
-      const satDate = lastDay - ((dayOfWeek + 1) % 7)
-      return new Date(year, 11, satDate)
-    }
-
     const now = new Date()
-    // 只用日期部分，避免时间干扰
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-    const thisYear = getLastSaturday(now.getFullYear())
-    const nextYear = getLastSaturday(now.getFullYear() + 1)
-    const examDate = thisYear > today ? thisYear : nextYear
+
+    // 2026年考研日期：12月20日
+    const examDate2026 = new Date(2026, 11, 20)
+    // 2027年考研日期：12月19日（假设每年比前年早一天）
+    const examDate2027 = new Date(2027, 11, 19)
+
+    const examDate = examDate2026 > today ? examDate2026 : examDate2027
     setDaysToExam(Math.max(0, Math.floor((examDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))))
   }, [])
 
