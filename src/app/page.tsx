@@ -28,7 +28,7 @@ export default function DashboardPage() {
 
   async function loadQuote() {
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE}/api/quotes/random`)
+      const res = await fetch(`/api/proxy-quotes`)
       if (!res.ok) throw new Error('获取语录失败')
       const q = await res.json()
       setQuote(q)
@@ -80,11 +80,11 @@ export default function DashboardPage() {
   }
 
   async function refreshQuote() {
-    console.log('[Dashboard] 开始刷新励志语, NEXT_PUBLIC_API_BASE:', process.env.NEXT_PUBLIC_API_BASE)
+    console.log('[Dashboard] 开始刷新励志语')
     setRefreshing(true)
     setQuoteError(null)
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE}/api/quotes/random`)
+      const res = await fetch(`/api/proxy-quotes`)
       console.log('[Dashboard] fetch 响应状态:', res.status)
       if (!res.ok) throw new Error(`刷新失败，服务器状态 ${res.status}`)
       const q = await res.json()
@@ -92,7 +92,7 @@ export default function DashboardPage() {
       setQuote(q)
     } catch (e: any) {
       console.error('[Dashboard] 刷新失败:', e)
-      setQuoteError(`刷新失败：${process.env.NEXT_PUBLIC_API_BASE} 连接异常`)
+      setQuoteError(`刷新失败：无法连接到后端服务`)
     }
     setRefreshing(false)
   }
@@ -138,12 +138,6 @@ export default function DashboardPage() {
           color="bg-purple-50 text-purple-500"
           href="/ai"
         />
-      </div>
-
-      {/* 调试：显示 API 地址 */}
-      <div className="bg-yellow-100 border border-yellow-400 text-yellow-800 p-2 rounded text-xs">
-        API地址: <code id="api-debug">{process.env.NEXT_PUBLIC_API_BASE || '未设置'}</code>
-        <button onClick={() => alert('按钮点击正常! API=' + process.env.NEXT_PUBLIC_API_BASE)} className="ml-3 px-2 py-1 bg-yellow-200 rounded text-xs">测试点击</button>
       </div>
 
       {/* AI 励志语 */}
