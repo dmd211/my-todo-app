@@ -40,6 +40,10 @@ export default function TasksPage() {
 
   async function addDaily() {
     if (!newDailyTitle.trim() || !weekly) return
+    if (!weekly.id) {
+      alert('本周任务 ID 缺失，请先保存本周任务再添加日任务')
+      return
+    }
     try {
       await api.tasks.createDaily(weekly.id, { title: newDailyTitle, date: newDailyDate })
       setShowAddDaily(false)
@@ -47,6 +51,7 @@ export default function TasksPage() {
       load()
     } catch (e) {
       console.error(e)
+      alert('添加任务失败，请稍后重试')
     }
   }
 

@@ -17,8 +17,9 @@ export default function AIPage() {
     try {
       const res = await api.ai.consult(userMsg)
       setMessages(m => [...m, { role: 'ai', content: res.answer }])
-    } catch (e) {
-      setMessages(m => [...m, { role: 'ai', content: '抱歉，AI 回答失败了，请稍后重试。' }])
+    } catch (e: any) {
+      const msg = e?.response?.data?.detail || e?.message || 'AI 回答失败，请稍后重试'
+      setMessages(m => [...m, { role: 'ai', content: `❌ ${msg}` }])
     }
     setLoading(false)
   }

@@ -98,7 +98,7 @@ export default function MaterialsPage() {
           <input value={keyword} onChange={e => setKeyword(e.target.value)} placeholder="搜索资料名称..." className="text-sm outline-none w-40" />
         </div>
         <select value={filterSubject} onChange={e => setFilterSubject(e.target.value)} className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm">
-          <option value="">全部学科</option>
+          <option value="">全部学科{subjects.length === 0 ? '（无）' : ''}</option>
           {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
         </select>
         <select value={filterCategory} onChange={e => setFilterCategory(e.target.value)} className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm">
@@ -116,7 +116,10 @@ export default function MaterialsPage() {
               <input value={title} onChange={e => setTitle(e.target.value)} required className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" placeholder="例如：高数极限知识点整理" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-600 mb-1">学科</label>
+              <label className="block text-sm font-medium text-gray-600 mb-1">
+                学科
+                {subjects.length === 0 && <span className="text-xs text-orange-400 ml-2">（请先去管理端添加学科）</span>}
+              </label>
               <select value={subjectId} onChange={e => setSubjectId(e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
                 <option value="">不指定</option>
                 {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}

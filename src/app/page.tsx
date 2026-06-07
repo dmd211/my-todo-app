@@ -10,6 +10,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [daysToExam, setDaysToExam] = useState(0)
+  const [quoteError, setQuoteError] = useState<string | null>(null)
 
   // 考研倒计时：每年12月最后一个周六
   useEffect(() => {
@@ -28,9 +29,11 @@ export default function DashboardPage() {
   async function loadQuote() {
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE}/api/quotes/random`)
+      if (!res.ok) throw new Error('获取语录失败')
       const q = await res.json()
       setQuote(q)
     } catch (e) {
+      console.error('loadQuote 失败:', e)
       setQuote({ content: '加油，你一定可以！', author: '佚名' })
     }
   }
@@ -77,8 +80,20 @@ export default function DashboardPage() {
   }
 
   async function refreshQuote() {
+    console.log('[Dashboard] 开始刷新励志语, NEXT_PUBLIC_API_BASE:', process.env.NEXT_PUBLIC_API_BASE)
     setRefreshing(true)
-    await loadQuote()
+    setQuoteError(null)
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE}/api/quotes/random`)
+      console.log('[Dashboard] fetch 响应状态:', res.status)
+      if (!res.ok) throw new Error(`刷新失败，服务器状态 ${res.status}`)
+      const q = await res.json()
+      console.log('[Dashboard] 获取到新语录:', q)
+      setQuote(q)
+    } catch (e: any) {
+      console.error('[Dashboard] 刷新失败:', e)
+      setQuoteError(`刷新失败：${process.env.NEXT_PUBLIC_API_BASE} 连接异常`)
+    }
     setRefreshing(false)
   }
 
@@ -125,22 +140,35 @@ export default function DashboardPage() {
         />
       </div>
 
+      {/* 调试：显示 API 地址 */}
+      <div className="bg-yellow-100 border border-yellow-400 text-yellow-800 p-2 rounded text-xs">
+        API地址: <code id="api-debug">{process.env.NEXT_PUBLIC_API_BASE || '未设置'}</code>
+        <button onClick={() => alert('按钮点击正常! API=' + process.env.NEXT_PUBLIC_API_BASE)} className="ml-3 px-2 py-1 bg-yellow-200 rounded text-xs">测试点击</button>
+      </div>
+
       {/* AI 励志语 */}
       <div className="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-xl p-6 text-white">
         <div className="flex items-start justify-between">
-          <div>
+          <div className="flex-1">
             <p className="text-sm opacity-75 mb-1">✨ 今日励志语</p>
-            <p className="text-xl font-medium leading-relaxed">
-             ldquo;{quote?.content || '加油，你一定可以！'}&rdquo;
-            </p>
-            <p className="text-sm opacity-60 mt-2">— {quote?.author || '佚名'}</p>
+            {quoteError ? (
+              <p className="text-sm text-yellow-200 mt-1">⚠️ {quoteError}</p>
+            ) : (
+              <>
+                <p className="text-xl font-medium leading-relaxed">
+                  &#8220;{quote?.content || '加油，你一定可以！'}&#8221;
+                </p>
+                <p className="text-sm opacity-60 mt-2">— {quote?.author || '佚名'}</p>
+              </>
+            )}
           </div>
           <button
             onClick={refreshQuote}
             disabled={refreshing}
-            className="p-2 rounded-lg bg-white/20 hover:bg-white/30 transition-colors"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white/20 hover:bg-white/30 transition-colors text-sm ml-4"
           >
-            <RefreshCw size={18} className={refreshing ? 'animate-spin' : ''} />
+            <RefreshCw size={16} className={refreshing ? 'animate-spin' : ''} />
+            {refreshing ? '刷新中...' : '换一句'}
           </button>
         </div>
       </div>
