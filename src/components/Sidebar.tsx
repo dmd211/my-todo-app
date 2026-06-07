@@ -1,7 +1,7 @@
 'use client'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutDashboard, BookOpen, FolderOpen, CheckSquare, Bot } from 'lucide-react'
+import { LayoutDashboard, BookOpen, FolderOpen, CheckSquare, Bot, Settings } from 'lucide-react'
 
 const navItems = [
   { href: '/', label: '学习仪表盘', icon: LayoutDashboard },
@@ -9,6 +9,7 @@ const navItems = [
   { href: '/materials', label: '资料库', icon: FolderOpen },
   { href: '/tasks', label: '周/日任务', icon: CheckSquare },
   { href: '/ai', label: 'AI 督学', icon: Bot },
+  { href: '/admin', label: '管理端', icon: Settings },
 ]
 
 export default function Sidebar() {
