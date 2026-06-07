@@ -14,16 +14,21 @@ export default function DashboardPage() {
 
   // 考研倒计时：每年12月最后一个周六
   useEffect(() => {
+    function getLastSaturday(year: number): Date {
+      const lastDay = new Date(year, 11 + 1, 0).getDate() // 12月最后一天
+      const dec31 = new Date(year, 11, lastDay)
+      const dayOfWeek = dec31.getDay() // 0=Sun, 6=Sat
+      const satDate = lastDay - ((dayOfWeek + 1) % 7)
+      return new Date(year, 11, satDate)
+    }
+
     const now = new Date()
-    const year = now.getFullYear()
-    // 12月最后一个周六
-    const lastDayOfDec = new Date(year, 11, 1)
-    const dayOfWeek = lastDayOfDec.getDay()
-    const daysToAdd = dayOfWeek <= 6 ? 6 - dayOfWeek : 0
-    const lastSaturday = new Date(year, 11, 31 - daysToAdd)
-    // 如果已经过了今年的考研，往后推到明年
-    const examDate = lastSaturday < now ? new Date(year + 1, 11, 31 - ((new Date(year + 1, 11, 1).getDay() + 1) % 7 || 7)) : lastSaturday
-    setDaysToExam(Math.max(0, Math.ceil((examDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))))
+    // 只用日期部分，避免时间干扰
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    const thisYear = getLastSaturday(now.getFullYear())
+    const nextYear = getLastSaturday(now.getFullYear() + 1)
+    const examDate = thisYear > today ? thisYear : nextYear
+    setDaysToExam(Math.max(0, Math.floor((examDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))))
   }, [])
 
   async function loadQuote() {
