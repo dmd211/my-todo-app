@@ -6,8 +6,15 @@ async function fetchAPI(endpoint: string, options: RequestInit = {}) {
   const url = endpoint.startsWith('http')
     ? endpoint
     : `${BACKEND_URL}${endpoint}`
+  
+  // 如果是 FormData，不设置 Content-Type（让浏览器自动处理）
+  const headers: Record<string, string> = {}
+  if (!(options.body instanceof FormData)) {
+    headers['Content-Type'] = 'application/json'
+  }
+  
   const res = await fetch(url, {
-    headers: { 'Content-Type': 'application/json', ...options.headers },
+    headers: { ...headers, ...options.headers },
     ...options,
   })
   if (!res.ok) throw new Error(await res.text())
