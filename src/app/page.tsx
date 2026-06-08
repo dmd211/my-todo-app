@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { RefreshCw, BookOpen, FolderOpen, Calendar, Brain, CheckSquare } from 'lucide-react'
+import { RefreshCw, BookOpen, FolderOpen, Calendar, Timer, CheckSquare } from 'lucide-react'
 
 export default function DashboardPage() {
   const [todayWrong, setTodayWrong] = useState(0)
@@ -132,9 +132,9 @@ export default function DashboardPage() {
           color="bg-green-50 text-green-500"
         />
         <StatCard
-          icon={<Brain />}
-          label="AI 督学"
-          value="随时问"
+          icon={<Timer />}
+          label="番茄钟"
+          value="专注"
           color="bg-purple-50 text-purple-500"
           href="/ai"
         />
