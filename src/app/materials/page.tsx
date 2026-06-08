@@ -26,18 +26,22 @@ export default function MaterialsPage() {
   async function loadData() {
     setLoading(true)
     try {
+      // 先单独获取学科（不受其他请求影响）
+      const subs = await supabase.from('subjects').select('*').order('name').then(r => r.data || [])
+      setSubjects(subs)
+      
+      // 再获取资料列表
       const params: any = {}
       if (filterSubject) params.subject_id = filterSubject
       if (filterCategory) params.category = filterCategory
       if (keyword) params.keyword = keyword
-      const [mats, subs] = await Promise.all([
-        api.materials.list(params),
-        supabase.from('subjects').select('*').order('name').then(r => r.data || []),
-      ])
+      const mats = await api.materials.list(params)
       setMaterials(mats)
-      setSubjects(subs)
     } catch (e) {
-      console.error(e)
+      console.error('加载数据失败:', e)
+      // 即使资料列表失败，也要确保学科已加载
+      const subs = await supabase.from('subjects').select('*').order('name').then(r => r.data || [])
+      setSubjects(subs)
     }
     setLoading(false)
   }
