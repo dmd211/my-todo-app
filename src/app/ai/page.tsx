@@ -1,93 +1,196 @@
 'use client'
-import { useState } from 'react'
-import { api } from '@/lib/api'
-import { Send, Bot, RefreshCw } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { Play, Pause, RotateCcw, Coffee, Brain, Timer } from 'lucide-react'
 
-export default function AIPage() {
-  const [messages, setMessages] = useState<{ role: 'user' | 'ai'; content: string }[]>([])
-  const [input, setInput] = useState('')
-  const [loading, setLoading] = useState(false)
+const WORK_TIME = 25 * 60 // 25分钟
+const SHORT_BREAK = 5 * 60 // 5分钟
+const LONG_BREAK = 15 * 60 // 15分钟
 
-  async function send() {
-    if (!input.trim() || loading) return
-    const userMsg = input
-    setInput('')
-    setMessages(m => [...m, { role: 'user', content: userMsg }])
-    setLoading(true)
-    try {
-      const res = await api.ai.consult(userMsg)
-      setMessages(m => [...m, { role: 'ai', content: res.answer }])
-    } catch (e: any) {
-      const msg = e?.response?.data?.detail || e?.message || 'AI 回答失败，请稍后重试'
-      setMessages(m => [...m, { role: 'ai', content: `❌ ${msg}` }])
+type Mode = 'work' | 'shortBreak' | 'longBreak'
+
+const modeConfig = {
+  work: { label: '专注学习', time: WORK_TIME, color: 'bg-indigo-500', icon: Brain },
+  shortBreak: { label: '短休息', time: SHORT_BREAK, color: 'bg-green-500', icon: Coffee },
+  longBreak: { label: '长休息', time: LONG_BREAK, color: 'bg-blue-500', icon: Coffee },
+}
+
+export default function PomodoroPage() {
+  const [mode, setMode] = useState<Mode>('work')
+  const [timeLeft, setTimeLeft] = useState(WORK_TIME)
+  const [isRunning, setIsRunning] = useState(false)
+  const [completed, setCompleted] = useState(0)
+  const [sessionsToday, setSessionsToday] = useState(0)
+  const intervalRef = useRef<NodeJS.Timeout | null>(null)
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+
+  // 加载今日完成数
+  useEffect(() => {
+    const today = new Date().toDateString()
+    const saved = localStorage.getItem('pomodoro_today')
+    const savedDate = localStorage.getItem('pomodoro_date')
+    if (saved && savedDate === today) {
+      setSessionsToday(parseInt(saved))
     }
-    setLoading(false)
+  }, [])
+
+  // 计时逻辑
+  useEffect(() => {
+    if (isRunning && timeLeft > 0) {
+      intervalRef.current = setInterval(() => {
+        setTimeLeft(t => t - 1)
+      }, 1000)
+    } else if (timeLeft === 0) {
+      setIsRunning(false)
+      // 播放提示音
+      if (audioRef.current) {
+        audioRef.current.play().catch(() => {})
+      }
+      // 完成一个番茄钟
+      if (mode === 'work') {
+        const today = new Date().toDateString()
+        const newCount = sessionsToday + 1
+        setSessionsToday(newCount)
+        localStorage.setItem('pomodoro_today', String(newCount))
+        localStorage.setItem('pomodoro_date', today)
+        setCompleted(c => c + 1)
+      }
+      // 自动切换模式
+      if (mode === 'work') {
+        const nextMode = sessionsToday > 0 && sessionsToday % 4 === 0 ? 'longBreak' : 'shortBreak'
+        setMode(nextMode)
+        setTimeLeft(modeConfig[nextMode].time)
+      } else {
+        setMode('work')
+        setTimeLeft(WORK_TIME)
+      }
+    }
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current)
+    }
+  }, [isRunning, timeLeft, mode, sessionsToday])
+
+  const start = () => setIsRunning(true)
+  const pause = () => setIsRunning(false)
+  const reset = () => {
+    setIsRunning(false)
+    setTimeLeft(modeConfig[mode].time)
   }
 
-  const quickQuestions = [
-    '本周还剩什么没做？',
-    '我今天的任务完成了吗？',
-    '给我一些复习建议',
-  ]
+  const switchMode = (newMode: Mode) => {
+    setIsRunning(false)
+    setMode(newMode)
+    setTimeLeft(modeConfig[newMode].time)
+  }
+
+  const formatTime = (seconds: number) => {
+    const m = Math.floor(seconds / 60).toString().padStart(2, '0')
+    const s = (seconds % 60).toString().padStart(2, '0')
+    return `${m}:${s}`
+  }
+
+  const progress = ((modeConfig[mode].time - timeLeft) / modeConfig[mode].time) * 100
+  const config = modeConfig[mode]
+  const Icon = config.icon
 
   return (
     <div className="flex flex-col h-[calc(100vh-48px)]">
-      <div className="flex items-center gap-2 mb-4">
-        <Bot size={24} className="text-indigo-600" />
-        <h2 className="text-2xl font-bold text-gray-800">AI 督学</h2>
+      {/* 页面标题 */}
+      <div className="flex items-center gap-2 mb-6">
+        <Timer size={24} className="text-indigo-600" />
+        <h2 className="text-2xl font-bold text-gray-800">番茄钟</h2>
       </div>
 
-      {/* 快捷问题 */}
-      <div className="flex flex-wrap gap-2 mb-4">
-        {quickQuestions.map(q => (
-          <button key={q} onClick={() => setInput(q)} className="text-xs bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-full hover:bg-indigo-100 transition-colors">
-            {q}
+      {/* 模式切换 */}
+      <div className="flex gap-2 mb-8">
+        {(['work', 'shortBreak', 'longBreak'] as Mode[]).map(m => (
+          <button
+            key={m}
+            onClick={() => switchMode(m)}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              mode === m
+                ? 'bg-indigo-600 text-white'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+          >
+            {modeConfig[m].label}
           </button>
         ))}
       </div>
 
-      {/* 对话区 */}
-      <div className="flex-1 bg-white rounded-xl p-5 shadow-sm border border-gray-100 flex flex-col overflow-hidden">
-        <div className="flex-1 overflow-y-auto space-y-4 mb-4">
-          {messages.length === 0 && (
-            <div className="text-center text-gray-400 mt-20">
-              <Bot size={48} className="mx-auto mb-3 opacity-30" />
-              <p>问我任何关于本周任务、进度或复习建议的问题</p>
-              <p className="text-xs mt-2">例如：&ldquo;本周任务完成得怎么样？&rdquo;</p>
-            </div>
-          )}
-          {messages.map((msg, i) => (
-            <div key={i} className={`flex items-start gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${msg.role === 'user' ? 'bg-indigo-100' : 'bg-green-100'}`}>
-                {msg.role === 'user' ? '我' : '🤖'}
-              </div>
-              <div className={`max-w-[70%] rounded-xl px-4 py-3 text-sm ${msg.role === 'user' ? 'bg-indigo-500 text-white' : 'bg-gray-100 text-gray-700'}`}>
-                {msg.content}
-              </div>
-            </div>
-          ))}
-          {loading && (
-            <div className="flex items-start gap-3">
-              <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">🤖</div>
-              <div className="bg-gray-100 rounded-xl px-4 py-3 text-sm text-gray-400">思考中...</div>
-            </div>
-          )}
+      {/* 计时器主体 */}
+      <div className="flex flex-col items-center flex-1">
+        {/* 圆形进度 */}
+        <div className="relative w-64 h-64 mb-8">
+          <svg className="w-full h-full transform -rotate-90">
+            <circle
+              cx="128" cy="128" r="120"
+              stroke="#e5e7eb"
+              strokeWidth="8"
+              fill="none"
+            />
+            <circle
+              cx="128" cy="128" r="120"
+              stroke={mode === 'work' ? '#6366f1' : mode === 'shortBreak' ? '#22c55e' : '#3b82f6'}
+              strokeWidth="8"
+              fill="none"
+              strokeDasharray={2 * Math.PI * 120}
+              strokeDashoffset={2 * Math.PI * 120 * (1 - progress / 100)}
+              strokeLinecap="round"
+              className="transition-all duration-1000"
+            />
+          </svg>
+          <div className="absolute inset-0 flex flex-col items-center justify-center">
+            <Icon size={32} className={`mb-2 ${mode === 'work' ? 'text-indigo-500' : 'text-green-500'}`} />
+            <span className="text-5xl font-bold text-gray-800">{formatTime(timeLeft)}</span>
+            <span className="text-sm text-gray-400 mt-2">{config.label}</span>
+          </div>
         </div>
 
-        {/* 输入框 */}
-        <div className="flex gap-3 border-t pt-4">
-          <input
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && send()}
-            placeholder="问我关于本周任务、进度、复习建议..."
-            className="flex-1 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200"
-          />
-          <button onClick={send} disabled={!input.trim() || loading} className="bg-indigo-600 text-white px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-2">
-            <Send size={16} /> 发送
+        {/* 控制按钮 */}
+        <div className="flex gap-4 mb-8">
+          {isRunning ? (
+            <button
+              onClick={pause}
+              className="flex items-center gap-2 bg-gray-600 text-white px-6 py-3 rounded-xl font-medium hover:bg-gray-700 transition-colors"
+            >
+              <Pause size={20} /> 暂停
+            </button>
+          ) : (
+            <button
+              onClick={start}
+              className="flex items-center gap-2 bg-indigo-600 text-white px-6 py-3 rounded-xl font-medium hover:bg-indigo-700 transition-colors"
+            >
+              <Play size={20} /> 开始
+            </button>
+          )}
+          <button
+            onClick={reset}
+            className="flex items-center gap-2 bg-gray-200 text-gray-700 px-6 py-3 rounded-xl font-medium hover:bg-gray-300 transition-colors"
+          >
+            <RotateCcw size={20} /> 重置
           </button>
         </div>
+
+        {/* 今日统计 */}
+        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 w-full max-w-md">
+          <h3 className="text-sm font-medium text-gray-500 mb-4">今日统计</h3>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="text-center p-4 bg-indigo-50 rounded-lg">
+              <div className="text-3xl font-bold text-indigo-600">{sessionsToday}</div>
+              <div className="text-xs text-gray-500 mt-1">完成番茄数</div>
+            </div>
+            <div className="text-center p-4 bg-green-50 rounded-lg">
+              <div className="text-3xl font-bold text-green-600">{sessionsToday * 25}</div>
+              <div className="text-xs text-gray-500 mt-1">累计分钟</div>
+            </div>
+          </div>
+        </div>
       </div>
+
+      {/* 提示音 */}
+      <audio ref={audioRef} preload="auto">
+        <source src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YVoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2teleQYAKI/R9bSEIA8lks3qsWcOHyyW1LpqJBgWKJTO5reCHRMpj9LZpncQADeL0/K0hR8OMpPQ6biAIw9qk9PqtIgfEG2W0+m2iyATbJfW6riNIRdvmNjruI8jE3CY2uu6kCUVcJzZ67uRJRZzntrrvJMmFnaf2u29lCYWeJ/b7b6WKBl8odvvv5cqHYKh3O6/ly0jhKHc7r+YLyaHod3uv5suJ4mi3e6/my4piqLe7r+bLymLo9/uv50vKo2k4O+/nS8rjqbh77+eLyyPp+Hvv58wLZCp4fDAoDEwk6nj8cGiMzKTquPxwqMzMpSr4/DBozQ0la3k8cKkNTWWruXww6U1Npev5fDEpjY3mLDl8cSnNziasOXyxag4OJqy5vPHqTo5m7Pm88iqOjqcsubzyaw7O5yz5/PLrTw7nbPn88+uPDuedeiz0LDD" type="audio/wav" />
+      </audio>
     </div>
   )
 }

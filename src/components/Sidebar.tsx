@@ -1,14 +1,14 @@
 'use client'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutDashboard, BookOpen, FolderOpen, CheckSquare, Bot, Settings } from 'lucide-react'
+import { LayoutDashboard, BookOpen, FolderOpen, CheckSquare, Timer, Settings } from 'lucide-react'
 
 const navItems = [
   { href: '/', label: '学习仪表盘', icon: LayoutDashboard },
   { href: '/wrong-questions', label: '错题本', icon: BookOpen },
   { href: '/materials', label: '资料库', icon: FolderOpen },
   { href: '/tasks', label: '周/日任务', icon: CheckSquare },
-  { href: '/ai', label: 'AI 督学', icon: Bot },
+  { href: '/ai', label: '番茄钟', icon: Timer },
   { href: '/admin', label: '管理端', icon: Settings },
 ]
 
