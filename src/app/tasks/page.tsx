@@ -28,13 +28,20 @@ export default function TasksPage() {
   useEffect(() => { load() }, [])
 
   async function saveWeekly() {
-    if (!weeklyTitle.trim()) return
+    const title = weeklyTitle.trim()
+    if (!title) {
+      alert('请先输入任务内容')
+      return
+    }
+    console.log('保存周任务, 内容:', title)
     try {
-      await api.tasks.upsertWeekly(weeklyTitle)
+      const result = await api.tasks.upsertWeekly(title)
+      console.log('保存结果:', result)
       setEditingWeekly(false)
       load()
-    } catch (e) {
-      console.error(e)
+    } catch (e: any) {
+      console.error('保存失败:', e)
+      alert('保存失败: ' + (e.message || '未知错误'))
     }
   }
 
